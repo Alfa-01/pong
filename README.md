@@ -4,7 +4,7 @@ Classic simple game pong firstly appeared in 1972
 
 # How to play game?
 
-    1. You need to install python(3.9+) and python interpretator;
+    1. You need to install python(3.9+);
     2. You need to install pygame:
       2.1. To install pygame run console command '-pip install pygame';
     3. Run pong.py from downloaded directory;
