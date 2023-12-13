@@ -4,7 +4,6 @@
 Classic simple game pong firstly appeared in 1972.
 """
 from __future__ import annotations
-
 from pong_variables import *
 import pygame
 
@@ -21,7 +20,7 @@ Creates object of class Ball, simple ball with collising with walls and objects 
         self.__color = color
         self.__difficult = 0
 
-    def check_collision(self, screen_width: int, screen_height: int, players: list[pygame.Rect, pygame.Rect]):
+    def check_collision(self, screen_width: int, screen_height: int, players: list[pygame.Rect]):
         """
 Method of class Ball wich checks collisions between object of class Ball and walls and objects of class Player
         :param players: list of left and right player rects (pygame.Rects)
@@ -48,7 +47,8 @@ Method of class Ball wich checks collisions between object of class Ball and wal
                 self.__movement_x = 1
 
         elif self.__rect.colliderect(right_player):
-            if right_player.y + right_player.height // 3 <= self.__rect.y <= right_player.y + right_player.height // 3 * 2:
+            if (right_player.y + right_player.height // 3 <= self.__rect.y <=
+                    right_player.y + right_player.height // 3 * 2):
                 self.__movement_y = 0
                 self.__movement_x = -1
             if right_player.y - self.__rect.y <= self.__rect.y <= right_player.y + right_player.height // 3:
@@ -82,12 +82,15 @@ Method of class Ball which returns copy rect (pygame.Rect) of object of class Ba
 
 class Player:
     """
-Creates an object of class Player. Players in pong are placed on both sides of the screen and colises with ball and walls.
+Creates an object of class Player. Players in pong are placed on both sides of the screen and colises
+with ball and walls.
     """
     def __init__(self, x: int, y: int, width: int, height: int, speed: int, color: tuple, left=False, right=False):
         self.__rect = pygame.Rect((x, y), (width, height))
         self.__left, self.__right = left, right
-        self.__movement_y = 0
+        self.__directions = {
+            pygame.K_w: False, pygame.K_s: False, pygame.K_UP: False, pygame.K_DOWN: False
+        }
         self.__speed = speed
         self.__color = color
 
@@ -96,12 +99,13 @@ Creates an object of class Player. Players in pong are placed on both sides of t
 Method of class Player which checks collisions between object of class Player and walls
         :param screen_height: height of window with game
         """
-        if self.__rect.y <= 5:
-            self.__movement_y = 0
-            self.__rect.y = 5 + 1
+        if self.__rect.y < 5:
+            self.__rect.y = 5
         if self.__rect.y > screen_height - 5 - self.__rect.height:
-            self.__movement_y = 0
-            self.__rect.y = screen_height - self.__rect.height - 5 - 1
+            self.__rect.y = screen_height - self.__rect.height - 5
+
+    def get_direction_keys(self):
+        return self.__directions.keys()
 
     def check_events(self, event: pygame.event):
         """
@@ -110,27 +114,19 @@ to bottom (S for left player, KEY DOWN for right player) / to top (W for left pl
         :param event: event (from keyboard) received from method of class Game
         """
         if event.type == pygame.KEYDOWN:
-            if self.__right:
-                if event.key == pygame.K_UP:
-                    self.__movement_y = -1
-                if event.key == pygame.K_DOWN:
-                    self.__movement_y = 1
-            if self.__left:
-                if event.key == pygame.K_w:
-                    self.__movement_y = -1
-                if event.key == pygame.K_s:
-                    self.__movement_y = 1
+            self.__directions[event.key] = True
         if event.type == pygame.KEYUP:
-            if (event.key == pygame.K_UP or event.key == pygame.K_DOWN) and self.__right:
-                self.__movement_y = 0
-            if (event.key == pygame.K_w or event.key == pygame.K_s) and self.__left:
-                self.__movement_y = 0
+            self.__directions[event.key] = False
 
     def move(self):
         """
-Method of class Player which moves object of class Player in to top or to bottom, depends on y flag, aslo oject can stop.
+Method of class Player which moves object of class Player in to top or to bottom, depends on y flag,
+aslo oject can stop.
         """
-        self.__rect.y += self.__movement_y * self.__speed
+        self.__rect.y += self.__speed * (
+                (self.__directions[pygame.K_s] - self.__directions[pygame.K_w]) * self.__left +
+                (self.__directions[pygame.K_DOWN] - self.__directions[pygame.K_UP]) * self.__right
+        )
 
     def draw(self, screen: pygame.Surface):
         """
@@ -139,7 +135,7 @@ Method of class Player which draws object of class Player on a surface, giving a
         """
         pygame.draw.rect(screen, self.__color, self.__rect)
 
-    def get_rect(self) -> pygame.rect:
+    def get_rect(self) -> pygame.Rect:
         """
 Method of class Player which returns copy rect (pygame.Rect) of object of class Player
         :return: copy rect (pygame.Rect) of object of class Player
@@ -206,7 +202,7 @@ Main class. Creates an object of class Game. Contains and proccess all previous 
         pygame.init()
 
         self.__screen_width, self.__screen_height = width, height
-        self.__screen = pygame.display.set_mode((self.__screen_width, self.__screen_height))
+        self.__screen = pygame.display.set_mode((self.__screen_width, self.__screen_height), pygame.FULLSCREEN)
 
         self.__FPS = game_FPS
         self.__clock = pygame.time.Clock()
@@ -293,8 +289,8 @@ Main method of class Game, contains logic, movement and drawing proccesses.
         while not self.__game_end:
             self.__screen.blit(self.__background, (0, 0))
             self.__check_events()
-            self.__game_logic()
             self.__game_move()
+            self.__game_logic()
             self.__game_draw()
 
             pygame.display.flip()
@@ -308,11 +304,14 @@ Method of class game which checks events on closing game and also check events f
             if event.type == pygame.QUIT:
                 self.__game_end = True
             for player in self.__players:
-                player.check_events(event)
+                if event.type in (pygame.KEYDOWN, pygame.KEYUP):
+                    if event.key in player.get_direction_keys():
+                        player.check_events(event)
 
     def __game_logic(self):
         """
-Mehtod of class Game which process logic of game (ball's logic, objects' of class Player logis and objects' of class Counter)
+Mehtod of class Game which process logic of game (ball's logic, objects' of class Player logis and objects'
+of class Counter)
         """
         for counter in self.__counters:
             counter.add_score(self.__ball.get_rect(), self.__screen_width)
@@ -320,7 +319,9 @@ Mehtod of class Game which process logic of game (ball's logic, objects' of clas
                 self.__game_end = True
 
         self.__ball.check_collision(
-            self.__screen_width, self.__screen_height, [player.get_rect() for player in self.__players]
+            self.__screen_width, self.__screen_height, [
+                player.get_rect() for player in self.__players
+            ]
         )
 
         for player in self.__players:
